@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify
+import json
+from flask import Flask, request, jsonify, render_template
+import hashlib
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
-# This variable will store the last processed JSON. It's initialized to None initially
-# TODO yael- is it ok? or should i find another way to do it?
-last_json = None
+# Store the last processed JSON that transfered to md5 hash. It's initialized to None
+last_json_hash = None
 
 def is_valid_israeli_id(id):
     # Convert the input to a string and remove leading/trailing whitespaces
@@ -30,19 +31,29 @@ def is_valid_random_number(num):
     return False
 
     
+def hash_json(json_data):
+    # Convert the JSON data to a string
+    json_string = json.dumps(json_data, sort_keys=True)
+
+    # Use MD5 hash function
+    hash_object = hashlib.md5(json_string.encode())
+    return hash_object.hexdigest()
 
 # Compares the given Json with the last processed Json, updates the last_json variable, and returns either "New" or "Same" based on the comparison result
 def process_json(json_data):
-    global last_json
+    global last_json_hash
 
-    if last_json is None:
-        last_json = json_data
+    # Generate hash for the current JSON
+    current_json_hash = hash_json(json_data)
+
+    if last_json_hash is None:
+        last_json_hash = current_json_hash
         return "New"
 
-    if last_json == json_data:
+    if last_json_hash == current_json_hash:
         return "Same"
     else:
-        last_json = json_data
+        last_json_hash = current_json_hash
         return "New"
 
 @app.route('/process_json', methods=['POST'])
@@ -68,10 +79,10 @@ def process_json_endpoint():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# TODO yael- delete it later
-@app.route('/')
-def hello():
-    return 'Hello, Flask!'
+
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
